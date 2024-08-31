@@ -33,6 +33,15 @@ void* memory_mapping(void* address, size_t size, int prot, int flags ){
     return memory;
 }
 
+void readfile(void* addr, size_t size){
+  ssize_t bytes = read(fd, addr, size)
+    if(bytes != size){
+      perror("Reading error");
+      loader_cleanup();
+      exit(1);
+  }
+}
+
 /*
  * Load and run the ELF executable file
  */
@@ -52,6 +61,17 @@ void load_and_run_elf(char** exe) {
   phdr = malloc(sizeof(Elf__hdr)*ehdr->e_phnum);
   if(phdr==NULL){
     perror("Error in accessing PHDR, points to NULL");
+  }
+
+  if(lseek(fd, ehdr->e_phoff, SEEK_SET == -1)){
+    perror("Failed to jump address.");
+    loader_cleanup();
+    exit(1);
+  }
+  readfile(phdr, sizeof(Elf32_Phdr)* ehdr->e_phnum);
+
+  for( int i = 0; i<ehdr->e_phnum, i++){
+    if(phdr[i].p_type == PT_LOAD)
   }
 
   // 1. Load entire binary content into the memory from the ELF file.
