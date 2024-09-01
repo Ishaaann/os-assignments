@@ -77,26 +77,26 @@ void readfile(void* addr, size_t size){
       }
 
   // 4. Navigate to the entrypoint address into the segment loaded in the memory in above step
-        while(0){
-          if(lseek(fd, phdr[i].p_offset, SEEK_SET)==-1){
-            perror("Failed to jump address.");
-            loader_cleanup();
-            exit(1);
-            }
-          ssize_t bytes = read(fd, memory, phdr[i].p_filesz);
-          if (bytes == -1) {
-              perror("Error while reading data into memory");
-              munmap(memory, phdr[i].p_memsz);
-              exit(1);
-          }
+    if(lseek(fd, phdr[i].p_offset, SEEK_SET)==-1){
+    perror("Failed to jump address.");
+    loader_cleanup();
+    exit(1);
+    }
+
+    ssize_t bytes = read(fd, memory, phdr[i].p_filesz);
+    if (bytes == -1) {
+        perror("Error reading data into memory");
+        munmap(memory, phdr[i].p_memsz);
+        exit(1);
+    }
+          
         
-              if (mprotect(memory, phdr[i].p_memsz, PROT_READ | PROT_EXEC) == -1) {
-                  perror("Error adjusting memory protection");
-                  munmap(memory, phdr[i].p_memsz); // Clean up the mmap
-                  exit(1);
-          }
-        }
-        }
+    if (mprotect(memory, phdr[i].p_memsz, PROT_READ | PROT_EXEC) == -1) {
+          perror("Error adjusting memory protection");
+          munmap(memory, phdr[i].p_memsz); // Clean up the mmap
+          exit(1);
+    }
+    }
   }
   // 5. Typecast the address to that of function pointer matching "_start" method in fib.c.
   int (*_start)(void) = (int (*)(void))(ehdr->e_entry);
