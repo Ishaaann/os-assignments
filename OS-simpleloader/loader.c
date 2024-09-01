@@ -1,6 +1,4 @@
 #include "loader.h"
-#include <setjmp.h>
-#include <signal.h>
 
 #define exit_error 1
 
@@ -20,12 +18,12 @@ void loader_cleanup() {
     free(ehdr);
     ehdr = NULL;
   }
-  if(fd!=-1)
-    close(fd);
+  //if(fd!=-1)
+  close(fd);
 }
 
 void* memory_mapping(void* address, size_t size, int prot, int flags){
-    void* memory = mmap(address, size, prot, flags, fd, 0);
+    void* memory = mmap(address, size, prot, flags, -1, 0);
     if(memory==MAP_FAILED){
       perror("Error thrown in mapping memory");
       exit(1);
@@ -80,7 +78,11 @@ void readfile(void* addr, size_t size){
 
   // 4. Navigate to the entrypoint address into the segment loaded in the memory in above step
         while(0){
-          lseek(fd, phdr[i].p_offset, SEEK_SET);
+          if(lseek(fd, phdr[i].p_offset, SEEK_SET)==-1){
+            perror("Failed to jump address.");
+            loader_cleanup();
+            exit(1);
+            }
           ssize_t bytes = read(fd, memory, phdr[i].p_filesz);
           if (bytes == -1) {
               perror("Error while reading data into memory");
