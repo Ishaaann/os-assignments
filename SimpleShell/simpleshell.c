@@ -73,7 +73,7 @@ void SIGINT_history(){
 
 void create_process_and_run(char* cmd){
     if(checkHistory){
-        printHistory(cmd);
+        print_history(cmd);
         return 0;
     }
     if(checkCD(cmd)){
