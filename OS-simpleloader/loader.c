@@ -1,6 +1,6 @@
 #include "loader.h"
 
-#define exit_error 1
+#define error 1
 
 Elf32_Ehdr *ehdr;//pointer to ELF header
 Elf32_Phdr *phdr;//pointer to Program header table
@@ -18,8 +18,8 @@ void loader_cleanup() {
     free(ehdr);
     ehdr = NULL;
   }
-  //if(fd!=-1)
-  close(fd);
+  if(fd!=-1)
+    close(fd);
 }
 
 void* memory_mapping(void* address, size_t size, int prot, int flags){
@@ -42,7 +42,7 @@ void readfile(void* addr, size_t size){
   // 1. Load entire binary content into the memory from the ELF file.
   void load_and_run_elf(char** exe){
   fd = open(exe[1], O_RDONLY);
-  if(fd==-1){
+  if(fd<=0){
     perror("Error");
     exit(1);
   }
@@ -93,10 +93,11 @@ void readfile(void* addr, size_t size){
         
     if (mprotect(memory, phdr[i].p_memsz, PROT_READ | PROT_EXEC) == -1) {
           perror("Error adjusting memory protection");
-          munmap(memory, phdr[i].p_memsz); // Clean up the mmap
+          // Clean up the mmap
+          munmap(memory, phdr[i].p_memsz);
           exit(1);
     }
-    }
+        }
   }
   // 5. Typecast the address to that of function pointer matching "_start" method in fib.c.
   int (*_start)(void) = (int (*)(void))(ehdr->e_entry);
