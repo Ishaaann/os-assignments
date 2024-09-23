@@ -84,7 +84,7 @@ void create_process_and_run(char* cmd){
         }
     }
     //Record cd command in history(array)
-    history_entries[counter].command = strdup(command);
+    history_entries[counter].command = strdup(cmd);
         history_entries[counter].entries[0] = getpid(); // Current process ID
         history_entries[counter].entries[1] = time(NULL); // Current time
         history_entries[counter].entries[2] = -1; // Execution time not available
@@ -99,7 +99,7 @@ void create_process_and_run(char* cmd){
 
     //Recording the starting time
     struct timeval startTime;
-    gettimeofday(&startTime, NULL);
+    mingw_gettimeofday(&startTime, NULL);
 
     child_pid = fork();
     if(child_pid == -1){
@@ -123,17 +123,17 @@ void create_process_and_run(char* cmd){
         if(WIFEXITED(status)){
             //Recording the end time
             struct timeval endTime;
-            gettimeofday(&endTime, NULL);
+            mingw_gettimeofday(&endTime, NULL);
             long long interval = (endTime.tv_sec - startTime.tv_sec) * 1000LL +
                                  (endTime.tv_usec - startTime.tv_usec) / 1000LL;
         
 
         //update entry
         if (counter < 100) {
-                history_entries[counter].command = strdup(command);
+                history_entries[counter].command = strdup(cmd);
                 history_entries[counter].entries[0] = child_pid;
-                history_entries[counter].entries[1] = start_time.tv_sec;
-                history_entries[counter].entries[2] = (int)duration;
+                history_entries[counter].entries[1] = startTime.tv_sec;
+                history_entries[counter].entries[2] = (int)interval;
                 counter++;
             }
             return WIFEXITED(status);
