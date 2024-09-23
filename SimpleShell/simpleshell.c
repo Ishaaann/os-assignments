@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// System calls for process creation, waiting, and types.
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
-#include <signal.h> // Signal handling
-#include <time.h> // Time-related functions
+#include <signal.h>
+#include <time.h>
 #include <ctype.h> 
-#define MAX_INPUT_SIZE 1024
+#define MAX_INPUT_LENGTH 1024
 
 int checkHistory(char* cmd){
     if(strcmp(cmd, "history") == 0){
@@ -42,7 +41,7 @@ void my_handler(int signum){
     }
 }
 
-//defined an array for storigng the history of commands
+//defined an array for storing the history of commands
 struct history history_entries[100];
 int counter = 0;//counter for iterating the history array - history_entries
 
@@ -69,6 +68,27 @@ void SIGINT_history(){
         printf("\n");
         
     }
+}
+
+
+char* read_command() {
+    char command[MAX_INPUT_LENGTH];
+
+    //read user input
+    if (fgets(command, sizeof(command), stdin) == NULL){
+        perror("fgets error");
+        exit(EXIT_FAILURE);
+    }
+    size_t length = strlen(command);
+    if (length > 0 && command[length - 1] == '\n') {
+        command[length - 1] = '\0';
+    }
+    // Check for backslashes or quotes in the input
+    if (strchr(command, '\\') != NULL || strchr(command, '"') != NULL || strchr(command, '\'') != NULL) {
+        printf("Error: Backslashes or quotes are not allowed in the command.\n");
+        return NULL;
+    }
+    return strdup(command);
 }
 
 void create_process_and_run(char* cmd){
@@ -143,6 +163,109 @@ void create_process_and_run(char* cmd){
             return 1;
         }
     )
+}
+
+void pipe(char *command) {
+    char *commands[MAX_INPUT_LENGTH];
+    int number_of_commands = 0;
+
+    char *token = strtok(command, "|"); //will implement do while loop here later
+    while (token != NULL && number_of_commands < MAX_INPUT_LENGTH) {
+        commands[number_of_commands] = token;
+        number_of_commands++;
+        token = strtok(NULL, "|");
+    }
+    commands[number_of_commands] = NULL;
+
+    int pipefd[2];
+    pid_t cpid;
+    int status;
+    int init_pipe_read = STDIN_FILENO;
+
+    char piped_command[MAX_INPUT_LENGTH] = "";
+    //concatenate the commands with '|' in between them
+    for (int i = 0; i < number_of_commands; i++) {
+        strcat(piped_command, commands[i]);
+        if (i<number_of_commands-1){
+            strcat(piped_command, " | ");
+        }
+    }
+    for (int i = 0; i < number_of_commands; i++) {
+        //create pipe for the commands except the ending one
+        if (i < number_of_commands - 1) {
+            if (pipe(pipefd) == -1){
+                perror("pipe error");
+                exit(EXIT_FAILURE);
+            }
+        }
+        cpid = fork();
+        if (cpid == -1){
+            perror("fork error");
+            exit(EXIT_FAILURE);
+        } else if (cpid == 0) {
+            if (i!=0){
+                if (dup2(init_pipe_read, init_pipe_read) == -1) {
+                    perror("dup2 error");
+                    exit(EXIT_FAILURE);
+                }
+                close(init_pipe_read);
+            }
+
+            if (i < number_of_commands - 1) {
+                if (dup2(pipefd[1], init_pipe_read) == -1) {
+                    perror("dup2 error");
+                    exit(EXIT_FAILURE);
+                }
+                close(pipefd[1]);
+            }
+
+            //close all pipes
+            for (int j = 0; j < number_of_commands; j++) {
+                close(pipefd[j]);
+            }
+
+            //split the current command
+            char *args[MAX_INPUT_LENGTH];
+            int argc = 0;
+
+            char *arg_token = strtok(commands[i], "|");
+            while (arg_token != NULL && argc < MAX_INPUT_LENGTH) {
+                args[argc] = arg_token;
+                argc++;
+                arg_token = strtok(NULL, " ");
+            }
+            args[argc] = NULL;
+
+            //Executing the command using execvp
+            if (execvp(args[0], args) == -1) {
+                perror("execvp error");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            //parent process
+            if (i < number_of_commands - 1) {
+                close(pipefd[1]);
+            }
+            if (i!=0){
+                close(init_pipe_read);
+            }
+
+            waitpid(cpid, &status, 0);
+            if(WIFEXITED(status)) {
+                if(i==0) {
+                    history_entries[counter].command = strdup(piped_command);
+                    history_entries[counter].entries[0] = cpid;
+                    history_entries[counter].entries[1] = time(NULL); // Current time
+                    history_entries[counter].entries[2] = -1; // Execution time not available
+                    counter++;
+                }
+            } else {
+                perror("waitpid error");
+                exit(EXIT_FAILURE);
+            }
+            init_pipe_read = pipefd[1];
+        }
+    }
 }
 
 
