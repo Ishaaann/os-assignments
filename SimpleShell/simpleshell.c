@@ -5,7 +5,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <signal.h>
-#include <time.h>
+#include <time.h> 
 #include <ctype.h> 
 #define MAX_INPUT_LENGTH 1024
 
@@ -30,10 +30,7 @@ int checkPipe(char* cmd){
     return 0;
 }
 
-int launch(char* cmd){
-    int status = create_process_and_run(cmd);
-    return status;
-}
+
 
 void my_handler(int signum){
     if(signum==SIGINT){
@@ -163,6 +160,11 @@ void create_process_and_run(char* cmd){
             return 1;
         }
     )
+}
+
+int launch(char* cmd){
+    int status = create_process_and_run(cmd);
+    return status;
 }
 
 void pipe(char *command) {
