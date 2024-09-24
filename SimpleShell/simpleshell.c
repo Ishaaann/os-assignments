@@ -11,6 +11,8 @@
 #include <ctype.h> 
 #define MAX_INPUT_LENGTH 1024
 
+int shell_running = 1;
+
 int checkHistory(char* cmd){
     if(strcmp(cmd, "history") == 0){
         return 1;
@@ -26,7 +28,7 @@ int checkCD(char* cmd){
 }
 
 int checkPipe(char* cmd){
-    if(strchr(cmd, '|') == NULL){
+    if(strchr(cmd, '|') != NULL){
         return 1;
     }
     return 0;
@@ -76,6 +78,7 @@ void SIGINT_history(){
 void my_handler(int signum){
     if(signum==SIGINT){
         SIGINT_history();
+        shell_running = 0;
     }
 }
 
@@ -99,7 +102,7 @@ char* read_command() {
     return strdup(command);
 }
 
-//void SIGINT_history();  // Forward declaration to avoid implicit declaration error
+
 int execute_pipe(char *command) {
     char *commands[MAX_INPUT_LENGTH];
     int number_of_commands = 0;
@@ -204,9 +207,83 @@ int execute_pipe(char *command) {
     }
     return 0;  // Return success
 }
+// int create_process_and_run(char* cmd) {
+//     if(checkHistory(cmd)){
+//         print_history(cmd);
+//         return 0;
+//     }
+//     if(checkCD(cmd)){
+//         char* path = cmd+3;
+//         if(chdir(path) == -1){
+//             perror("chdir");
+//             return 1;
+//         }
+//     }
+//     //Record cd command in history(array)
+//     history_entries[counter].command = strdup(cmd);
+//     history_entries[counter].entries[0] = getpid(); // Current process ID
+//     history_entries[counter].entries[1] = time(NULL); // Current time
+//     history_entries[counter].entries[2] = -1; // Execution time not available
+//     counter++;
+
+//     if(checkPipe(cmd)){
+//         return execute_pipe(cmd);
+//     }
+
+//     pid_t child_pid;
+//     int status;
+
+//     //Recording the starting time
+//     struct timeval startTime;
+//     gettimeofday(&startTime, NULL);
+
+//     child_pid = fork();
+//     if(child_pid == -1){
+//         perror("Fork");
+//         return 1;
+//     }
+//     else if(child_pid == 0){
+//         //child process starts running 
+//         //this code is executed by the child process
+//         //using exec commands
+//         if(execl("/bin/sh","sh","-c", cmd, NULL) == -1){
+//             perror("Execl");
+//             exit(EXIT_FAILURE);
+//         }
+//         exit(0);
+//     }
+//     else{
+//         //this code is executed by the parent process
+//         //parent waits for the child process to complete 
+//         waitpid(child_pid,&status,0);
+//         if(WIFEXITED(status)){
+//             //Recording the end time
+//             struct timeval endTime;
+//             gettimeofday(&endTime, NULL);
+//             long long interval = (endTime.tv_sec - startTime.tv_sec) * 1000LL +
+//                                  (endTime.tv_usec - startTime.tv_usec) / 1000LL;
+        
+
+//         //update entry
+//         if (counter < 100) {
+//                 history_entries[counter].command = strdup(cmd);
+//                 history_entries[counter].entries[0] = child_pid;
+//                 history_entries[counter].entries[1] = startTime.tv_sec;
+//                 history_entries[counter].entries[2] = (int)interval;
+//                 counter++;
+//             }
+//             return WIFEXITED(status);
+//         }
+//         else{
+//             perror("waitpid");
+//             return 1;
+//         }
+// }
+// }
+
 int create_process_and_run(char* cmd) {
-    if(checkHistory){
-        print_history(cmd);
+    if(checkHistory(cmd)){
+        print_history();
         return 0;
     }
     if(checkCD(cmd)){
@@ -215,13 +292,14 @@ int create_process_and_run(char* cmd) {
             perror("chdir");
             return 1;
         }
+        // Record the cd command in history (skipping time tracking for simplicity)
+        history_entries[counter].command = strdup(cmd);
+        history_entries[counter].entries[0] = getpid(); // Current process ID
+        history_entries[counter].entries[1] = time(NULL); // Current time
+        history_entries[counter].entries[2] = -1; // Execution time not available
+        counter++;
+        return 0;
     }
-    //Record cd command in history(array)
-    history_entries[counter].command = strdup(cmd);
-    history_entries[counter].entries[0] = getpid(); // Current process ID
-    history_entries[counter].entries[1] = time(NULL); // Current time
-    history_entries[counter].entries[2] = -1; // Execution time not available
-    counter++;
 
     if(checkPipe(cmd)){
         return execute_pipe(cmd);
@@ -230,7 +308,7 @@ int create_process_and_run(char* cmd) {
     pid_t child_pid;
     int status;
 
-    //Recording the starting time
+    // Recording the starting time
     struct timeval startTime;
     gettimeofday(&startTime, NULL);
 
@@ -238,47 +316,46 @@ int create_process_and_run(char* cmd) {
     if(child_pid == -1){
         perror("Fork");
         return 1;
-    }
-    else if(child_pid == 0){
-        //child process starts running 
-        //this code is executed by the child process
-        //using exec commands
+    } else if(child_pid == 0) {
+        // Child process starts running 
         if(execl("/bin/sh","sh","-c", cmd, NULL) == -1){
             perror("Execl");
             exit(EXIT_FAILURE);
         }
-        exit(0);
-    }
-    else{
-        //this code is executed by the parent process
-        //parent waits for the child process to complete 
-        waitpid(child_pid,&status,0);
+    } else {
+        // Parent process
+        waitpid(child_pid, &status, 0);
         if(WIFEXITED(status)){
-            //Recording the end time
+            // Recording the end time
             struct timeval endTime;
             gettimeofday(&endTime, NULL);
             long long interval = (endTime.tv_sec - startTime.tv_sec) * 1000LL +
                                  (endTime.tv_usec - startTime.tv_usec) / 1000LL;
-        
 
-        //update entry
-        if (counter < 100) {
+            // Update history entry
+            if (counter < 100) {
                 history_entries[counter].command = strdup(cmd);
                 history_entries[counter].entries[0] = child_pid;
                 history_entries[counter].entries[1] = startTime.tv_sec;
                 history_entries[counter].entries[2] = (int)interval;
                 counter++;
             }
-            return WIFEXITED(status);
-        }
-        else{
-            perror("waitpid");
+
+            // Return actual exit status of the child process
+            return WEXITSTATUS(status);
+        } else {
+            perror("Child process did not terminate normally");
             return 1;
         }
-}
+    }
 }
 
+
 int launch(char* cmd){
+    // if (cmd == NULL || strlen(cmd) == 0) {
+    // continue;  // skip empty input
+    // }
+
     int status = create_process_and_run(cmd);
     return status;
 }
@@ -291,19 +368,19 @@ int main(){
     sigaction(SIGINT, &sig, NULL);
 
     do{
-        printf("ishaan&&divyansh@SimpleShell:$ ");
+        printf("ishaan&&divyansh@SimpleShell:~$ ");
         char* cmd = read_command();
 
         if(cmd!=NULL){
             int status = launch(cmd);
             free(cmd);
 
-            if(cmd!=0){
+            if(status != 0){
                 printf("Command exited with status %d\n", status);  
             }
         }
     }
-    while(true); //infinite loop until loop is broken with CTRL+C
+    while(shell_running); //infinite loop until loop is broken with CTRL+C
 
     return 0;
 }
