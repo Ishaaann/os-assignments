@@ -4,8 +4,10 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <signal.h>
-#include <time.h> 
+#include <time.h>
+#include <stdbool.h>
 #include <ctype.h> 
 #define MAX_INPUT_LENGTH 1024
 
@@ -32,12 +34,17 @@ int checkPipe(char* cmd){
 
 
 
-void my_handler(int signum){
-    if(signum==SIGINT){
-        SIGINT_history();
-    }
-}
 
+
+struct history
+{
+    char* command;
+    int entries[3];
+
+    // 0: pid
+    // 1: start time
+    // 2: duration of execution
+};
 //defined an array for storing the history of commands
 struct history history_entries[100];
 int counter = 0;//counter for iterating the history array - history_entries
@@ -66,7 +73,11 @@ void SIGINT_history(){
         
     }
 }
-
+void my_handler(int signum){
+    if(signum==SIGINT){
+        SIGINT_history();
+    }
+}
 
 char* read_command() {
     char command[MAX_INPUT_LENGTH];
@@ -88,7 +99,112 @@ char* read_command() {
     return strdup(command);
 }
 
-void create_process_and_run(char* cmd){
+//void SIGINT_history();  // Forward declaration to avoid implicit declaration error
+int execute_pipe(char *command) {
+    char *commands[MAX_INPUT_LENGTH];
+    int number_of_commands = 0;
+
+    char *token = strtok(command, "|"); //will implement do while loop here later
+    while (token != NULL && number_of_commands < MAX_INPUT_LENGTH) {
+        commands[number_of_commands] = token;
+        number_of_commands++;
+        token = strtok(NULL, "|");
+    }
+    commands[number_of_commands] = NULL;
+
+    int pipefd[2];
+    pid_t cpid;
+    int status;
+    int init_pipe_read = STDIN_FILENO;
+
+    char piped_command[MAX_INPUT_LENGTH] = "";
+    // Concatenate the commands with '|' in between them
+    for (int i = 0; i < number_of_commands; i++) {
+        strcat(piped_command, commands[i]);
+        if (i < number_of_commands - 1) {
+            strcat(piped_command, " | ");
+        }
+    }
+
+    for (int i = 0; i < number_of_commands; i++) {
+        // Create pipe for the commands except the last one
+        if (i < number_of_commands - 1) {
+            if (pipe(pipefd) == -1) {
+                perror("pipe error");
+                return 1;  // Return error status
+            }
+        }
+        cpid = fork();
+        if (cpid == -1) {
+            perror("fork error");
+            return 1;  // Return error status
+        } else if (cpid == 0) {
+            if (i != 0) {
+                if (dup2(init_pipe_read, STDIN_FILENO) == -1) {
+                    perror("dup2 error");
+                    return 1;  // Return error status
+                }
+                close(init_pipe_read);
+            }
+
+            if (i < number_of_commands - 1) {
+                if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+                    perror("dup2 error");
+                    return 1;  // Return error status
+                }
+                close(pipefd[1]);
+            }
+
+            // Close all pipes
+            for (int j = 0; j < number_of_commands; j++) {
+                close(pipefd[j]);
+            }
+
+            // Split the current command
+            char *args[MAX_INPUT_LENGTH];
+            int argc = 0;
+
+            char *arg_token = strtok(commands[i], " ");
+            while (arg_token != NULL && argc < MAX_INPUT_LENGTH) {
+                args[argc] = arg_token;
+                argc++;
+                arg_token = strtok(NULL, " ");
+            }
+            args[argc] = NULL;
+
+            // Executing the command using execvp
+            if (execvp(args[0], args) == -1) {
+                perror("execvp error");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            // Parent process
+            if (i < number_of_commands - 1) {
+                close(pipefd[1]);
+            }
+            if (i != 0) {
+                close(init_pipe_read);
+            }
+
+            waitpid(cpid, &status, 0);
+            if (WIFEXITED(status)) {
+                if (i == 0) {
+                    history_entries[counter].command = strdup(piped_command);
+                    history_entries[counter].entries[0] = cpid;
+                    history_entries[counter].entries[1] = time(NULL);  // Current time
+                    history_entries[counter].entries[2] = -1;  // Execution time not available
+                    counter++;
+                }
+            } else {
+                perror("waitpid error");
+                return 1;  // Return error status
+            }
+            init_pipe_read = pipefd[0];  // Set for next iteration
+        }
+    }
+    return 0;  // Return success
+}
+int create_process_and_run(char* cmd) {
     if(checkHistory){
         print_history(cmd);
         return 0;
@@ -102,13 +218,13 @@ void create_process_and_run(char* cmd){
     }
     //Record cd command in history(array)
     history_entries[counter].command = strdup(cmd);
-        history_entries[counter].entries[0] = getpid(); // Current process ID
-        history_entries[counter].entries[1] = time(NULL); // Current time
-        history_entries[counter].entries[2] = -1; // Execution time not available
-        counter++;
+    history_entries[counter].entries[0] = getpid(); // Current process ID
+    history_entries[counter].entries[1] = time(NULL); // Current time
+    history_entries[counter].entries[2] = -1; // Execution time not available
+    counter++;
 
     if(checkPipe(cmd)){
-        return pipe_commands(cmd);
+        return execute_pipe(cmd);
     }
 
     pid_t child_pid;
@@ -116,7 +232,7 @@ void create_process_and_run(char* cmd){
 
     //Recording the starting time
     struct timeval startTime;
-    mingw_gettimeofday(&startTime, NULL);
+    gettimeofday(&startTime, NULL);
 
     child_pid = fork();
     if(child_pid == -1){
@@ -133,14 +249,14 @@ void create_process_and_run(char* cmd){
         }
         exit(0);
     }
-    else(
+    else{
         //this code is executed by the parent process
         //parent waits for the child process to complete 
         waitpid(child_pid,&status,0);
         if(WIFEXITED(status)){
             //Recording the end time
             struct timeval endTime;
-            mingw_gettimeofday(&endTime, NULL);
+            gettimeofday(&endTime, NULL);
             long long interval = (endTime.tv_sec - startTime.tv_sec) * 1000LL +
                                  (endTime.tv_usec - startTime.tv_usec) / 1000LL;
         
@@ -159,115 +275,12 @@ void create_process_and_run(char* cmd){
             perror("waitpid");
             return 1;
         }
-    )
+}
 }
 
 int launch(char* cmd){
     int status = create_process_and_run(cmd);
     return status;
-}
-
-void pipe(char *command) {
-    char *commands[MAX_INPUT_LENGTH];
-    int number_of_commands = 0;
-
-    char *token = strtok(command, "|"); //will implement do while loop here later
-    while (token != NULL && number_of_commands < MAX_INPUT_LENGTH) {
-        commands[number_of_commands] = token;
-        number_of_commands++;
-        token = strtok(NULL, "|");
-    }
-    commands[number_of_commands] = NULL;
-
-    int pipefd[2];
-    pid_t cpid;
-    int status;
-    int init_pipe_read = STDIN_FILENO;
-
-    char piped_command[MAX_INPUT_LENGTH] = "";
-    //concatenate the commands with '|' in between them
-    for (int i = 0; i < number_of_commands; i++) {
-        strcat(piped_command, commands[i]);
-        if (i<number_of_commands-1){
-            strcat(piped_command, " | ");
-        }
-    }
-    for (int i = 0; i < number_of_commands; i++) {
-        //create pipe for the commands except the ending one
-        if (i < number_of_commands - 1) {
-            if (pipe(pipefd) == -1){
-                perror("pipe error");
-                exit(EXIT_FAILURE);
-            }
-        }
-        cpid = fork();
-        if (cpid == -1){
-            perror("fork error");
-            exit(EXIT_FAILURE);
-        } else if (cpid == 0) {
-            if (i!=0){
-                if (dup2(init_pipe_read, init_pipe_read) == -1) {
-                    perror("dup2 error");
-                    exit(EXIT_FAILURE);
-                }
-                close(init_pipe_read);
-            }
-
-            if (i < number_of_commands - 1) {
-                if (dup2(pipefd[1], init_pipe_read) == -1) {
-                    perror("dup2 error");
-                    exit(EXIT_FAILURE);
-                }
-                close(pipefd[1]);
-            }
-
-            //close all pipes
-            for (int j = 0; j < number_of_commands; j++) {
-                close(pipefd[j]);
-            }
-
-            //split the current command
-            char *args[MAX_INPUT_LENGTH];
-            int argc = 0;
-
-            char *arg_token = strtok(commands[i], "|");
-            while (arg_token != NULL && argc < MAX_INPUT_LENGTH) {
-                args[argc] = arg_token;
-                argc++;
-                arg_token = strtok(NULL, " ");
-            }
-            args[argc] = NULL;
-
-            //Executing the command using execvp
-            if (execvp(args[0], args) == -1) {
-                perror("execvp error");
-                exit(EXIT_FAILURE);
-            }
-        } else {
-            //parent process
-            if (i < number_of_commands - 1) {
-                close(pipefd[1]);
-            }
-            if (i!=0){
-                close(init_pipe_read);
-            }
-
-            waitpid(cpid, &status, 0);
-            if(WIFEXITED(status)) {
-                if(i==0) {
-                    history_entries[counter].command = strdup(piped_command);
-                    history_entries[counter].entries[0] = cpid;
-                    history_entries[counter].entries[1] = time(NULL); // Current time
-                    history_entries[counter].entries[2] = -1; // Execution time not available
-                    counter++;
-                }
-            } else {
-                perror("waitpid error");
-                exit(EXIT_FAILURE);
-            }
-            init_pipe_read = pipefd[1];
-        }
-    }
 }
 
 
@@ -290,7 +303,7 @@ int main(){
             }
         }
     }
-    while(true); //infinte loop until loop is broken with CTRL+C
+    while(true); //infinite loop until loop is broken with CTRL+C
 
     return 0;
 }
