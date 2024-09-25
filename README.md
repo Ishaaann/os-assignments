@@ -11,7 +11,7 @@ make
 ./shell
 ```
 4) the prompt will be displayed
-```bash
+```
 ishaan&&divyansh@SimpleShell:~$
 ```
 5) execute any commands!
