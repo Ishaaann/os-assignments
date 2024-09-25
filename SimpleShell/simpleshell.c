@@ -267,7 +267,8 @@ int create_process_and_run(char* cmd) {
     if(child_pid == -1){
         perror("Fork");
         return 1;
-    } else if(child_pid == 0) {
+    }
+    else if(child_pid == 0) {
         // Child process starts running 
         if(execl("/bin/sh","sh","-c", cmd, NULL) == -1){
             perror("Execl");
