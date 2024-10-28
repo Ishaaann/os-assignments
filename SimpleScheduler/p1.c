@@ -1,5 +1,5 @@
 #include <stdio.h>
-// #include "dummy_main.h"
+#include "dummy_main.h"
 
 int fib(int n) {
     if (n <= 1) {
@@ -9,7 +9,7 @@ int fib(int n) {
 }
 
 int main(int argc, char **argv) {
-    int n = 43;
+    int n = 40;
     int result = fib(n);
     printf("Fibonacci of %d is %d\n", n, result);
     return 0;
