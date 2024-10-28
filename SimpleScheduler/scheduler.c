@@ -5,6 +5,160 @@
 #include <string.h>
 #include <sys/time.h>
 
+#define PARENT(i) (i/2)
+#define LEFT(i) (2*i)
+#define RIGHT(i) (2*i+1)
+
+struct proc {
+    char cmd[100];
+    pid_t pid;
+    int priority;
+    int execution_time;
+    int wait_time;
+    char state[10]; // READY or RUNNING
+    // process gets dumped in the terminated_arr after the process gets terminated
+};
+
+struct pair {
+    struct proc process;
+    int priority;
+};
+
+struct entry {
+    struct pair p;
+    int arrival_time;
+};
+
+struct Heap {
+    struct entry* arr;
+    int size;
+    int capacity;
+};
+
+struct proc make_process(char* cmd, int priority) {
+    struct proc p;
+
+    if (strcpy(p.cmd, cmd) == NULL) {
+        perror("Error in copying command");
+    }
+
+    p.priority = priority;
+    p.execution_time = 0;
+    p.wait_time = 0;
+
+
+    if (strcpy(p.state, "READY") == NULL) {
+        perror("Error in copying state");
+    }
+
+
+    return p;
+}
+
+// function to print the contents of the priority queue
+void print_heap(struct Heap* heap) { 
+    printf("\n");
+
+    for (int i = 1; i <= heap->size; i++) {
+        printf("%s %d %d\n", heap->arr[i].p.process.cmd, heap->arr[i].p.priority, heap->arr[i].p.process.pid);
+    }
+    printf("\n");
+}
+
+// Comparison function to compare two entries in the heap
+int cmp_entries(struct entry e1, struct entry e2) {
+    if (e1.p.priority == e2.p.priority) {
+        return e1.arrival_time < e2.arrival_time;
+    }
+
+    return e1.p.priority > e2.p.priority;
+}
+
+// Swap two entries in the heap
+void exchange(struct Heap *heap, int i, int j) {
+    struct entry temp = heap->arr[i];
+    heap->arr[i] = heap->arr[j];
+    heap->arr[j] = temp;
+}
+
+// Insert a new process into the priority queue
+void insert(struct Heap *heap, struct proc x) {
+    if (heap->size == heap->capacity) {
+        perror("Heap overflow");
+        return;
+    }
+
+    heap->size++;
+    struct pair p;
+    p.process = x;
+    p.priority = x.priority;
+    heap->arr[heap->size].p = p;
+    heap->arr[heap->size].arrival_time = heap->size; // Use a different arrival time mechanism
+
+    int i = heap->size;
+
+    while (i > 1 && cmp_entries(heap->arr[i], heap->arr[PARENT(i)])) {
+        exchange(heap, i, PARENT(i));
+        i = PARENT(i);
+    }
+}
+
+// Find the process with the highest priority in the queue
+struct proc find_max(struct Heap* heap) {
+    if (heap->size == 0) {
+        perror("Heap underflow");
+    }
+
+    return heap->arr[1].p.process;
+}
+
+// Reorganize the heap after extracting the maximum element
+void Heapify(struct Heap* heap, int i) {
+    int l = LEFT(i);
+    int r = RIGHT(i);
+    int largest = i;
+
+    if (l <= heap->size && cmp_entries(heap->arr[l], heap->arr[i])) {
+        largest = l;
+    }
+    if (r <= heap->size && cmp_entries(heap->arr[r], heap->arr[largest])) {
+        largest = r;
+    }
+
+    if (largest != i) {
+        exchange(heap, i, largest);
+        Heapify(heap, largest);
+    }
+}
+
+// Extract and return the process with the highest priority
+struct proc extract_max(struct Heap* heap) {
+    struct proc max = heap->arr[1].p.process;
+    heap->arr[1] = heap->arr[heap->size--];
+    Heapify(heap, 1);
+    return max;
+}
+
+struct proc extract_by_pid(struct Heap* heap, pid_t pid) {
+    int i;
+
+    for (i = 1; i <= heap->size; i++) {
+        if (heap->arr[i].p.process.pid == pid) {
+            break;
+        }
+    }
+
+    if (i > heap->size) {
+        perror("Process not found");
+    }
+
+    struct proc p = heap->arr[i].p.process;
+    heap->arr[i] = heap->arr[heap->size--];
+    Heapify(heap, i);
+    return p;
+}
+
+
 int NCPU; //no. of cores
 int TSLICE;// time slice
 
