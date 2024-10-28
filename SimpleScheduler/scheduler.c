@@ -274,7 +274,36 @@ void sig_alarm_handler(int signum){
                 extract_by_pid(q1,process,pid);
                 insert(q1,process);
             }
+
+            else{
+                process.wait_time += TSLICE;
+            }
         }
+        n=1;
+        i=1;
+
+        while(n<=NCPU && i<=q1->size){
+            struct proc process = q1->arr[i].p.process;
+
+            if(strcmp(process.state,"READY") == 0){
+                if(strcpy(process.state,"RUNNING") == NULL){
+                    perror("Error copying state");
+                }
+
+                process.wait_time++TSLICE;
+                kill(process.pid, SIGCONT);
+                n++;
+            }
+            i++;
+        }
+        start_timer();
+    }
+    else if(signum=="SIGINT"){
+        stop_timer();
+        print_terminated_arr();
+        raise(SIGKILL);
+        free(q1->arr);
+        free(q1);
     }
 }
 
