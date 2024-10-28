@@ -158,6 +158,66 @@ struct proc extract_by_pid(struct Heap* heap, pid_t pid) {
     return p;
 }
 
+void signal_handler(int signum){
+    if(signum = SIGINT){
+        kill(pid_scheduler,SIGINT);
+    }
+}
+
+int isSubstring(const char *string, const char *substring){
+    int string_length = strlen(string);
+    int substring_length = strlen(substring)
+
+    for(int i = 0; i<=string_length; i++){
+        int j;
+        for( j = 0; j<substring_length; i++){
+            if(string[i+j] != substring[j]){
+                break;
+            }
+        }
+        if(j == substring_length){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void sig_alarm_handler(int signum){
+    if(signum == SIGALRM){
+        stop_timer();
+
+        int n;
+        int i;
+
+        for(i=1; i<q1->size; i++){
+            struct proc process = q1->arr[i].p.process;
+
+            while(wait_pid(process.pid, NULL, WNOHANG) == process.pid){
+                if(strcpy(process.state, "TERMINATED") == NULL){
+                    perror("Error copying state");
+                }
+
+                process.execution_time+=TSLICE;
+                terminated_arr[num_terminated++] = process;
+                extract_by_pid(q1,process.pid);
+                i--;
+                break;
+            }
+
+            if(strcmp(q1->arr[i].p.process.state, "RUNNING") == 0){
+                if(strcpy(process.state,"READY") == NULL){
+                    perror("Error copying state");
+                }
+
+                process.wait_time += TSLICE;
+                kill(process.pid, SIGSTOP);
+                extract_by_pid(q1,process,pid);
+                insert(q1,process);
+            }
+        }
+    }
+}
+
 
 int NCPU; //no. of cores
 int TSLICE;// time slice
