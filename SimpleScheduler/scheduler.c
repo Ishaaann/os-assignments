@@ -36,24 +36,67 @@ int main(int argc, char** argv){
         }
         char exe[20];
         int priority;
+
+        q1 = (struct Heap*) malloc(sizeof(struct Heap));
+        if(q1 = NULL){
+            perror("Error allocating memory.");
+        }
+
+        q1->arr = (struct->entry) malloc(100*sizeof(struct entry));
+        if(q1->arr == NULL){
+            perror("Error allocating memory")
+        }
+
+        q1->size = 0;
+        q1->capacity = 100;
+
+        start_timer();
+
+        while(1){
+            read(pipefd[0],input,100);
+            sscanf(input,"submit %s %d", exe, &priority);
+            struct proc p = make_process(exe,priority);
+
+            pid_t pid_process = fork();
+
+            if(pid_process == 0){
+                raise(SIGSTOP);
+            }
+
+            if(system(p.cmd) == -1){
+                perror("Error executing command");
+            }
+
+            kill(pid_scheduler, SIGCHLD);
+            exit(0);
+        }
+
+        else{
+            p.pid = pid_process;
+            p.waitTime = TSLICE;
+        }
+        insert(q1,p);
     }
-
-    while(shell_running){
-        //custom prompt 
-        printf("SimpleShell $ ");
-        if(fgets(input, 100, stdin) == NULL){
-            perror("Error while reading input");
+    else{
+        if(close(pipefd[0]) == -1){
+            perror("Error closing pipe");
         }
+        pid_scheduler = pid;
 
-        if(!subString(input,"submit")){
-            printf("Invalid command\n");
-            continue;
-        }
+        while(shell_running){
+            //custom prompt 
+            printf("SimpleShell $ ");
+            if(fgets(input, 100, stdin) == NULL){
+                perror("Error while reading input");
+            }
 
-        write(pipefd[1], input, strlen(input)+1);
+            if(!subString(input,"submit")){
+                printf("Invalid command\n");
+                continue;
+            }
+
+            write(pipefd[1], input, strlen(input)+1);
     
+        }
     }
-
-
-    return 0;
 }
