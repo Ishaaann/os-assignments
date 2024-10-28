@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "dummy_main.h"
 
-void print_hello_divyansh(int n) {
+void print_hello_divyansh() {
     printf("Hello Divyansh");
 }
 

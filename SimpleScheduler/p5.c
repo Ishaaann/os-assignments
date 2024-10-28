@@ -8,6 +8,7 @@ int sum(int a, int b) {
 int main(int argc, char **argv) {
     int num1 = 2;
     int num2 = 3;
-    printf(sum(num1,num2));
+    int result = sum(num1,num2);
+    printf("result %d", result);
     return 0;
 }

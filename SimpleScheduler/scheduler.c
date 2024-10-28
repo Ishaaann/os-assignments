@@ -169,7 +169,7 @@ struct proc terminated_arr[100];
 int num_terminated = 0;
 int NCPU; //number of cores
 int TSLICE; //Time slice
-pid_t scheduler_pid;
+pid_t pid_scheduler;
 
 void print_terminated_arr() {
     for (int i = 0; i < num_terminated; i++) {
@@ -226,7 +226,7 @@ void signal_handler(int signum){
 
 int isSubstring(const char *string, const char *substring){
     int string_length = strlen(string);
-    int substring_length = strlen(substring)
+    int substring_length = strlen(substring);
 
     for(int i = 0; i<=string_length; i++){
         int j;
@@ -252,7 +252,7 @@ void sig_alarm_handler(int signum){
         for(i=1; i<q1->size; i++){
             struct proc process = q1->arr[i].p.process;
 
-            while(wait_pid(process.pid, NULL, WNOHANG) == process.pid){
+            while(waitpid(process.pid, NULL, WNOHANG) == process.pid){
                 if(strcpy(process.state, "TERMINATED") == NULL){
                     perror("Error copying state");
                 }
@@ -271,7 +271,7 @@ void sig_alarm_handler(int signum){
 
                 process.wait_time += TSLICE;
                 kill(process.pid, SIGSTOP);
-                extract_by_pid(q1,process,pid);
+                extract_by_pid(q1,process.pid);
                 insert(q1,process);
             }
 
@@ -290,7 +290,7 @@ void sig_alarm_handler(int signum){
                     perror("Error copying state");
                 }
 
-                process.wait_time++TSLICE;
+                process.wait_time+=TSLICE;
                 kill(process.pid, SIGCONT);
                 n++;
             }
@@ -298,7 +298,7 @@ void sig_alarm_handler(int signum){
         }
         start_timer();
     }
-    else if(signum=="SIGINT"){
+    else if(signum== SIGINT){
         stop_timer();
         print_terminated_arr();
         raise(SIGKILL);
@@ -332,7 +332,7 @@ int main(int argc, char** argv){
 
         //error in handling pipes
         if(close(pipefd[1]) == -1){
-            perror("Error in closing pipe")
+            perror("Error in closing pipe");
         }
         char exe[20];
         int priority;
@@ -342,9 +342,9 @@ int main(int argc, char** argv){
             perror("Error allocating memory.");
         }
 
-        q1->arr = (struct->entry) malloc(100*sizeof(struct entry));
+        q1->arr = (struct entry*) malloc(100*sizeof(struct entry));
         if(q1->arr == NULL){
-            perror("Error allocating memory")
+            perror("Error allocating memory");
         }
 
         q1->size = 0;
@@ -361,11 +361,11 @@ int main(int argc, char** argv){
 
             if(pid_process == 0){
                 raise(SIGSTOP);
-            }
+            
 
-            if(system(p.cmd) == -1){
-                perror("Error executing command");
-            }
+                if(system(p.cmd) == -1){
+                    perror("Error executing command");
+                }
 
             kill(pid_scheduler, SIGCHLD);
             exit(0);
@@ -373,9 +373,10 @@ int main(int argc, char** argv){
 
         else{
             p.pid = pid_process;
-            p.waitTime = TSLICE;
+            p.wait_time = TSLICE;
         }
         insert(q1,p);
+        }
     }
     else{
         if(close(pipefd[0]) == -1){
@@ -390,7 +391,7 @@ int main(int argc, char** argv){
                 perror("Error while reading input");
             }
 
-            if(!subString(input,"submit")){
+            if(!isSubstring(input,"submit")){
                 printf("Invalid command\n");
                 continue;
             }
