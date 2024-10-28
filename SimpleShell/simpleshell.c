@@ -11,8 +11,10 @@
 #include <ctype.h> 
 #define MAX_INPUT_LENGTH 1024
 
+//for running of shell
 int shell_running = 1;
 
+//for "history" command
 int checkHistory(char* cmd){
     if(strcmp(cmd, "history") == 0){
         return 1;
@@ -20,6 +22,7 @@ int checkHistory(char* cmd){
     return 0;
 }
 
+//for "cd" command
 int checkCD(char* cmd){
     if(strncmp(cmd,"cd ",3) == 0){
         return 1;
@@ -218,7 +221,7 @@ int execute_pipe(char *command) {
                 perror("waitpid error");
                 return 1;  // Return error status
             }
-            init_pipe_read = pipefd[0];  // Set for next iteration
+            init_pipe_read = pipefd[0];  //Set for next iteration
         }
     }
     return 0;  // Return success
