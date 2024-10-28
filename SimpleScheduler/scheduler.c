@@ -5,10 +5,15 @@
 #include <string.h>
 #include <sys/time.h>
 
-#define PARENT(i) (i/2)
-#define LEFT(i) (2*i)
-#define RIGHT(i) (2*i+1)
-
+int PARENT(int i){
+    return i/2;
+}
+int LEFT(int i){
+    return 2*i;
+}
+int RIGHT(int i){
+    return 2*i+1;
+}
 struct proc {
     char cmd[100];
     pid_t pid;
@@ -158,6 +163,61 @@ struct proc extract_by_pid(struct Heap* heap, pid_t pid) {
     return p;
 }
 
+ // declarations
+struct Heap* q1 = NULL;
+struct proc terminated_arr[100];
+int num_terminated = 0;
+int NCPU; //number of cores
+int TSLICE; //Time slice
+pid_t scheduler_pid;
+
+void print_terminated_arr() {
+    for (int i = 0; i < num_terminated; i++) {
+        struct proc p = terminated_arr[i];
+        
+        printf("\n");
+        printf("+--------------------+\n");
+        printf("|Process Information:\n");
+        printf("|  Command:       %s\n", p.cmd);
+        printf("|  PID:           %d\n", p.pid);
+        printf("|  Priority:      %d\n", p.priority);
+        printf("|  Execution Time: %d\n", p.execution_time);
+        printf("|  Wait Time:     %d\n", p.wait_time);
+        printf("|  State:         %s\n", p.state);
+        printf("+--------------------+\n");
+        printf("\n");
+    }
+}
+
+// ------------------ Priority Queue APIs ------------------ //
+
+// ------------------ Timer APIs ------------------ //
+
+struct itimerval timer;
+
+void start_timer() {
+    timer.it_value.tv_sec = TSLICE;
+    timer.it_value.tv_usec = 0;
+    timer.it_interval.tv_sec = TSLICE;
+    timer.it_interval.tv_usec = 0;
+
+    if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
+        perror("Error in setting timer");
+    }
+}
+
+void stop_timer() {
+    timer.it_value.tv_sec = 0;
+    timer.it_value.tv_usec = 0;
+    timer.it_interval.tv_sec = 0;
+    timer.it_interval.tv_usec = 0;
+
+    if (setitimer(ITIMER_REAL, &timer, NULL) == -1) {
+        perror("Error in setting timer");
+    }
+} 
+
+
 void signal_handler(int signum){
     if(signum = SIGINT){
         kill(pid_scheduler,SIGINT);
@@ -218,9 +278,6 @@ void sig_alarm_handler(int signum){
     }
 }
 
-
-int NCPU; //no. of cores
-int TSLICE;// time slice
 
 int shell_running = 1; //flag to check if the shell is running 
 
