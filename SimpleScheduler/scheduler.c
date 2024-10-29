@@ -4,8 +4,10 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <sys/time.h>
-
-int PARENT(int i){
+#define PARENT(i) (i/2)
+#define LEFT(i) (2*i)
+#define RIGHT(i) (2*i + 1)
+/*int PARENT(int i){
     return i/2;
 }
 int LEFT(int i){
@@ -13,7 +15,7 @@ int LEFT(int i){
 }
 int RIGHT(int i){
     return 2*i+1;
-}
+}*/
 struct proc {
     char cmd[100];
     pid_t pid;
@@ -219,7 +221,7 @@ void stop_timer() {
 
 
 void signal_handler(int signum){
-    if(signum = SIGINT){
+    if(signum == SIGINT){
         kill(pid_scheduler,SIGINT);
     }
 }
@@ -230,7 +232,7 @@ int isSubstring(const char *string, const char *substring){
 
     for(int i = 0; i<=string_length; i++){
         int j;
-        for( j = 0; j<substring_length; i++){
+        for( j = 0; j<substring_length; j++){
             if(string[i+j] != substring[j]){
                 break;
             }
@@ -338,7 +340,7 @@ int main(int argc, char** argv){
         int priority;
 
         q1 = (struct Heap*) malloc(sizeof(struct Heap));
-        if(q1 = NULL){
+        if(q1 == NULL){
             perror("Error allocating memory.");
         }
 
