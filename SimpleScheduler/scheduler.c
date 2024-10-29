@@ -230,7 +230,7 @@ int isSubstring(const char *string, const char *substring){
     int string_length = strlen(string);
     int substring_length = strlen(substring);
 
-    for(int i = 0; i<=string_length; i++){
+    for(int i = 0; i<=string_length - substring_length; i++){
         int j;
         for( j = 0; j<substring_length; j++){
             if(string[i+j] != substring[j]){
