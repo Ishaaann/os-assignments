@@ -1,3 +1,4 @@
+//program p1
 #include <stdio.h>
 #include "dummy_main.h"
 

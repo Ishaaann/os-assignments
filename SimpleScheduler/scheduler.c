@@ -4,6 +4,8 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <sys/time.h>
+
+
 #define PARENT(i) (i/2)
 #define LEFT(i) (2*i)
 #define RIGHT(i) (2*i + 1)
@@ -16,49 +18,62 @@ int LEFT(int i){
 int RIGHT(int i){
     return 2*i+1;
 }*/
+
+//process structure which contains all necessary and relevant properties
 struct proc {
-    char cmd[100];
-    pid_t pid;
-    int priority;
-    int execution_time;
-    int wait_time;
+    char cmd[100];//command
+    pid_t pid;//process ID
+    int priority;//priority
+    int execution_time;//time taken for execution
+    int wait_time;//time waited brfore execution
     char state[10]; // READY or RUNNING
     // process gets dumped in the terminated_arr after the process gets terminated
 };
 
+//acts as a hashmap(sort of) between a process and its priority
+//and links them together
 struct pair {
-    struct proc process;
-    int priority;
+    struct proc process; //process
+    int priority; //priority
 };
 
+//links pair with its arrival time
 struct entry {
-    struct pair p;
-    int arrival_time;
+    struct pair p;//pair(process and its priority)
+    int arrival_time;//time at which function arrives
 };
 
+//maintains a dynamic array for processes
+//processes are stored inside this array
 struct Heap {
-    struct entry* arr;
-    int size;
-    int capacity;
+    struct entry* arr;//array to store processes
+    int size;//current size of array
+    int capacity;//capacity or maximum size of array
 };
 
+//takes a program and makes it a process by running it according 
+//to its priority
 struct proc make_process(char* cmd, int priority) {
     struct proc p;
 
+    //strcpy copies the cmd to p.cmd
+    //if it fails and it equal to null
     if (strcpy(p.cmd, cmd) == NULL) {
-        perror("Error in copying command");
+        perror("Error in copying command");//then an error is printed
     }
 
-    p.priority = priority;
-    p.execution_time = 0;
+    //initializes the attributes of process according to the input
+    p.priority = priority;//sets priority
+    p.execution_time = 0;//initially the execution time is zero
     p.wait_time = 0;
 
-
+    //process is initialized and ready to execute
+    //error checking for the same
     if (strcpy(p.state, "READY") == NULL) {
         perror("Error in copying state");
     }
 
-
+    //returns the process
     return p;
 }
 
@@ -74,6 +89,7 @@ void print_heap(struct Heap* heap) {
 
 // Comparison function to compare two entries in the heap
 int cmp_entries(struct entry e1, struct entry e2) {
+    //compares the priority of the both processes
     if (e1.p.priority == e2.p.priority) {
         return e1.arrival_time < e2.arrival_time;
     }
@@ -90,13 +106,15 @@ void exchange(struct Heap *heap, int i, int j) {
 
 // Insert a new process into the priority queue
 void insert(struct Heap *heap, struct proc x) {
+    //checks if size is less than or equal to capacity
     if (heap->size == heap->capacity) {
+        //if yes, throws heap overflow
         perror("Heap overflow");
         return;
     }
 
-    heap->size++;
-    struct pair p;
+    heap->size++;//increase current size of heap
+    struct pair p;//initialize the process
     p.process = x;
     p.priority = x.priority;
     heap->arr[heap->size].p = p;
@@ -230,7 +248,7 @@ int isSubstring(const char *string, const char *substring){
     int string_length = strlen(string);
     int substring_length = strlen(substring);
 
-    for(int i = 0; i<=string_length - substring_length; i++){
+    for(int i = 0; i<=string_length; i++){
         int j;
         for( j = 0; j<substring_length; j++){
             if(string[i+j] != substring[j]){
@@ -245,6 +263,19 @@ int isSubstring(const char *string, const char *substring){
 }
 
 void sig_alarm_handler(int signum){
+    // if (signum == SIGCHLD) {
+    //     pid_t pid;
+    //     while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
+    //         for (int i = 1; i <= q1->size; i++) {
+    //             if (q1->arr[i].p.process.pid == pid) {
+    //                 strcpy(q1->arr[i].p.process.state, "TERMINATED");
+    //                 terminated_arr[num_terminated++] = q1->arr[i].p.process;
+    //                 extract_by_pid(q1, pid);
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // }
     if(signum == SIGALRM){
         stop_timer();
 
@@ -306,6 +337,7 @@ void sig_alarm_handler(int signum){
         raise(SIGKILL);
         free(q1->arr);
         free(q1);
+        // exit(0);
     }
 }
 
@@ -401,5 +433,9 @@ int main(int argc, char** argv){
             write(pipefd[1], input, strlen(input)+1);
     
         }
+
+        if (waitpid(pid_scheduler, NULL, 0) == -1) {
+            perror("Error waiting for child process");
+    }
     }
 }
