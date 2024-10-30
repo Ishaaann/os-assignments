@@ -164,6 +164,7 @@ struct proc extract_max(struct Heap* heap) {
     return max;
 }
 
+// Extract and return a process by its PID, reorganizing the heap afterward
 struct proc extract_by_pid(struct Heap* heap, pid_t pid) {
     int i;
 
@@ -183,14 +184,15 @@ struct proc extract_by_pid(struct Heap* heap, pid_t pid) {
     return p;
 }
 
- // declarations
+ // Global declarations
 struct Heap* q1 = NULL;
 struct proc terminated_arr[100];
 int num_terminated = 0;
 int NCPU; //number of cores
-int TSLICE; //Time slice
+int TSLICE; //Time slice duration for scheduling
 pid_t pid_scheduler;
 
+//for printint the array of terminated processes
 void print_terminated_arr() {
     for (int i = 0; i < num_terminated; i++) {
         struct proc p = terminated_arr[i];
@@ -209,12 +211,12 @@ void print_terminated_arr() {
     }
 }
 
-// ------------------ Priority Queue APIs ------------------ //
 
 // ------------------ Timer APIs ------------------ //
-
+// a structure for setting up interval timers
 struct itimerval timer;
 
+//start the timer with predefined Time-slice
 void start_timer() {
     timer.it_value.tv_sec = TSLICE;
     timer.it_value.tv_usec = 0;
@@ -225,7 +227,7 @@ void start_timer() {
         perror("Error in setting timer");
     }
 }
-
+//stop the timer
 void stop_timer() {
     timer.it_value.tv_sec = 0;
     timer.it_value.tv_usec = 0;
@@ -237,7 +239,7 @@ void stop_timer() {
     }
 } 
 
-
+// Signal handler for SIGINT. stops the scheduler when signal is received
 void signal_handler(int signum){
     if(signum == SIGINT){
         kill(pid_scheduler,SIGINT);
@@ -261,7 +263,7 @@ int isSubstring(const char *string, const char *substring){
     }
     return 0;
 }
-
+// Signal handler for SIGALRM
 void sig_alarm_handler(int signum){
     // if (signum == SIGCHLD) {
     //     pid_t pid;
@@ -356,7 +358,7 @@ int main(int argc, char** argv){
     pid_t pid = fork();
 
 
-    //runs if the process is a child process
+    //runs if the process is a child process ; acts as the scheduler
     if(pid == 0){
         struct sigaction sig; //setting up our own signal handler to handle custom signals or the way we want them to execute
         memset(&sig, 0, sizeof(sig));
@@ -371,6 +373,7 @@ int main(int argc, char** argv){
         char exe[20];
         int priority;
 
+        // Initialize priority queue (heap) with a fixed capacity
         q1 = (struct Heap*) malloc(sizeof(struct Heap));
         if(q1 == NULL){
             perror("Error allocating memory.");
@@ -382,10 +385,10 @@ int main(int argc, char** argv){
         }
 
         q1->size = 0;
-        q1->capacity = 100;
+        q1->capacity = 100; // maximum number of processes allowed in the heap
 
         start_timer();
-
+        // scheduler's main loop for process management
         while(1){
             read(pipefd[0],input,100);
             sscanf(input,"submit %s %d", exe, &priority);
@@ -394,37 +397,40 @@ int main(int argc, char** argv){
             pid_t pid_process = fork();
 
             if(pid_process == 0){
-                raise(SIGSTOP);
+                raise(SIGSTOP); //suspend the child process until it is scheduled to run
             
-
+                //execute the command using system
                 if(system(p.cmd) == -1){
                     perror("Error executing command");
                 }
-
+            //notify the scheduler of the process completion
             kill(pid_scheduler, SIGCHLD);
             exit(0);
         }
 
         else{
+            //set process ID and initial wait time for scheduling
             p.pid = pid_process;
             p.wait_time = TSLICE;
         }
-        insert(q1,p);
+        insert(q1,p); //Insert the new process into our priority queue
         }
     }
     else{
+        //close unused read end of the pipe in the parent process
         if(close(pipefd[0]) == -1){
             perror("Error closing pipe");
         }
-        pid_scheduler = pid;
+        pid_scheduler = pid; //storing scheduler PID
 
         while(shell_running){
             //custom prompt 
             printf("SimpleShell $ ");
+            //reading user input
             if(fgets(input, 100, stdin) == NULL){
                 perror("Error while reading input");
             }
-
+            //checking if command starts with "submit", will not accept it otherwise
             if(!isSubstring(input,"submit")){
                 printf("Invalid command\n");
                 continue;
@@ -433,7 +439,7 @@ int main(int argc, char** argv){
             write(pipefd[1], input, strlen(input)+1);
     
         }
-
+        //wait for the child (scheduler) process to complete execution
         if (waitpid(pid_scheduler, NULL, 0) == -1) {
             perror("Error waiting for child process");
     }
