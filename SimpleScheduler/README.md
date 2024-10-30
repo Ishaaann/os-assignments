@@ -35,7 +35,6 @@ This code implements a simple multi-process scheduling system using priority-bas
 2. **Scheduler (Child)**: Reads commands from the pipe, creates and queues tasks by priority.
 3. **Shell (Parent)**: Receives user commands, sends valid ones to the scheduler, and waits for scheduler termination.
 
-#Contribution
-
+# Contribution
 Both of us mutually contributed equally . We worked together over discord and discussed and coded everything together.
 [**Github repo link**](https://github.com/Ishaaann/os-assignments)
