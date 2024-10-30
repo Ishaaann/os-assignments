@@ -225,7 +225,6 @@ void print_terminated_arr() {
     }
 }
 
-// ------------------ Priority Queue APIs ------------------ //
 
 // ------------------ Timer APIs ------------------ //
 
@@ -397,7 +396,7 @@ int main(int argc, char** argv){
     pid_t pid = fork();
 
 
-    //runs if the process is a child process
+    //runs if the process is a child process ; acts as the scheduler
     if(pid == 0){
         struct sigaction sig; //setting up our own signal handler to handle custom signals or the way we want them to execute
         memset(&sig, 0, sizeof(sig));
@@ -443,7 +442,7 @@ int main(int argc, char** argv){
 
             //if the process is a child process
             if(pid_process == 0){
-                raise(SIGSTOP);
+                raise(SIGSTOP); //suspend the child process until it is scheduled to run
             
                 //execute the command
                 if(system(p.cmd) == -1){
