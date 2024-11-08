@@ -76,6 +76,81 @@ void handle_page_fault(int signo, siginfo_t *si, void *context){
     }
     return;
 }
+//helper function to change the position of the filepointer inside the file
+void seek(int offset) {
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        perror("lseek failed");
+        loader_cleanup();
+        exit(1);
+    }
+}
 
+//helper function to read data from the file
+void read(void *dest, size_t size) {
+    ssize_t bytes_read = read(fd, dest, size);
+    if (bytes_read != size) {
+        perror("read error");
+        loader_cleanup();
+        exit(1);
+    }
+}
+void load_and_run_elf(char **exe){
+  struct sigaction sa;
+  sa.sa_flags = SA_SIGINFO;
+  sa.sa_sigaction = handle_page_fault;
+  //sigaction error handler  
+  if (sigaction(SIGSEGV, &sa, NULL) == -1) { 
+    perror("sigaction failed");
+    exit(1);
+}
+
+fd = open(exe[1], O_RDONLY);
+if (fd==-1){
+  perror("Error opening file");
+  exit(1);
+} 
+ehdr = malloc(sizeof(Elf32_Ehdr));
+if (ehdr == NULL) {
+  perror("Corrupt ehdr");
+  exit(1);
+}
+
+read(ehdr, sizeof(Elf32_Ehdr));
+
+phdr = malloc(sizeof(Elf32_Phdr)*ehdr->e_phnum);
+if(phdr == NULL){
+  perror("Corrupt phdr");
+  exit(1);
+}
+
+seek(ehdr->e_phoff);
+read(phdr, sizeof(Elf32_Phdr)*ehdr->e_phnum);
+
+int (*_start)(void) = (int (*)(void))(ehdr->e_entry);
+int result;
+
+// Lazy Loading
+result = _start();
+printf("_start return value = %d\n", result);
+
+//Reporting page faults and page allocations
+printf("Page faults = %d\n", pf);
+printf("Page allocations = %d\n", pa);
+printf("Internal fragmentation = %f KB\n", (float) inf/1024.0);
+
+//cleanup
+loader_cleanup();
+}
+
+int main(int argc, char **argv){
+  if (argc != 2) {
+    printf("Usage: %s <ELF executable>\n", argv[0]);
+    exit(1);
+  }
+
+  load_and_run_elf(argv);
+
+  return 0;
+}
 
 
