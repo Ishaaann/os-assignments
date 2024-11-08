@@ -86,7 +86,7 @@ void seek(int offset) {
 }
 
 //helper function to read data from the file
-void read(void *dest, size_t size) {
+void readfile(void *dest, size_t size) {
     ssize_t bytes_read = read(fd, dest, size);
     if (bytes_read != size) {
         perror("read error");
@@ -115,7 +115,7 @@ if (ehdr == NULL) {
   exit(1);
 }
 
-read(ehdr, sizeof(Elf32_Ehdr));
+readfile(ehdr, sizeof(Elf32_Ehdr));
 
 phdr = malloc(sizeof(Elf32_Phdr)*ehdr->e_phnum);
 if(phdr == NULL){
@@ -124,7 +124,7 @@ if(phdr == NULL){
 }
 
 seek(ehdr->e_phoff);
-read(phdr, sizeof(Elf32_Phdr)*ehdr->e_phnum);
+readfile(phdr, sizeof(Elf32_Phdr)*ehdr->e_phnum);
 
 int (*_start)(void) = (int (*)(void))(ehdr->e_entry);
 int result;
