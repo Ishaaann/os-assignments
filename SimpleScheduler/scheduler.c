@@ -399,7 +399,7 @@ int main(int argc, char** argv){
     //runs if the process is a child process ; acts as the scheduler
     if(pid == 0){
         struct sigaction sig; //setting up our own signal handler to handle custom signals or the way we want them to execute
-        memset(&sig, 0, sizeof(sig));
+        memset(&sig, 0, sizeof(sig));//assigns a block of memory to the signal handler
         sig.sa_handler = &sig_alarm_handler;
         sigaction(SIGALRM, &sig, NULL); //SIGALRM command handling
         sigaction(SIGINT, &sig, NULL); //SIGINT command handling
