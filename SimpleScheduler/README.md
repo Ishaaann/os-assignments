@@ -1,5 +1,22 @@
 # Simple Scheduler
-# Divyansh Kumar Gautam (2023208) | Ishaan Raj (2023248)
+## Divyansh Kumar Gautam (2023208) | Ishaan Raj (2023248)
+
+# How to Run
+in the SimpleScheduler directory, run the following command to compile:
+``` 
+make
+```
+then run the scheduler with number of CPUs and Time Slice in the command line arguments like so
+```
+./scheduler <NCPU> <TSLICE>
+```
+the shell prompt will pop up, and you can submit the processes like
+```
+submit ./p1 <optional priority value>
+```
+for cleanup:
+```make clean```
+
 
 This code implements a simple multi-process scheduling system using priority-based scheduling and signal handling. Below is a brief overview of its implementation:
 
