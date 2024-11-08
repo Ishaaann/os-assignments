@@ -49,7 +49,7 @@ void handle_page_fault(int signo, siginfo_t *si, void *context){
             int k = 0;
             while((phdr[i].p_memsz - (k*4096))>4096){
                 void *memory = memory_mapping((void *)phdr[i].p_vaddr + (k*4096), 4096, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS);
-                setting_seek(phdr[i].p_offset);
+                seek(phdr[i].p_offset);
                 ssize_t bytes = read(fd, memory, phdr[i].p_filesz);
                 if(bytes == -1){
                     perror("Error reading data into memory");
@@ -60,7 +60,7 @@ void handle_page_fault(int signo, siginfo_t *si, void *context){
                 k++;
             }
             void *memory = memory_mapping((void *)phdr[i].p_vaddr + (k*4096), phdr[i].p_memsz - (k*4096), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS);
-            setting_seek(phdr[i].p_offset);
+            seek(phdr[i].p_offset);
             ssize_t bytes = read(fd, memory, phdr[i].p_filesz);
             if(bytes == -1){
                 perror("Error reading data into memory");
