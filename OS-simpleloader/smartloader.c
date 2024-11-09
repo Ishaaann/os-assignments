@@ -14,6 +14,7 @@ int inf = 0;//number of internal fragmentation
 
 sigjmp_buf page_fault_jump;
 
+
 void loader_cleanup() {
   if(phdr){
     free(phdr);
@@ -37,45 +38,43 @@ void* memory_mapping(void* address, size_t size, int prot, int flags){
 }
 
 void handle_page_fault(int signo, siginfo_t *si, void *context){
-    pf++;
-    void *addr = si->si_addr;
+    if(signo == SIGSEGV){
+      pf++;
+      pa++;
 
-    int i;
-    for(int i = 0; i<ehdr->e_phnum; i++){
-        void* start = (void*)phdr[i].p_vaddr;
+      void *addr = si->si_addr;
+
+      for(int i = 0; i<ehdr->e_phnum; i++){
+        void* start = (void*)(phdr[i].p_vaddr);
         void* end = start + phdr[i].p_memsz;
 
-        if(addr>= start && addr<=end){
-            int k = 0;
-            while((phdr[i].p_memsz - (k*4096))>4096){
-                void *memory = memory_mapping((void *)phdr[i].p_vaddr + (k*4096), 4096, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS);
-                seek(phdr[i].p_offset);
-                ssize_t bytes = read(fd, memory, phdr[i].p_filesz);
-                if(bytes == -1){
-                    perror("Error reading data into memory");
-                    munmap(memory, phdr[i].p_memsz);
-                    exit(1);
-                }
-                pf++;
-                k++;
-            }
-            void *memory = memory_mapping((void *)phdr[i].p_vaddr + (k*4096), phdr[i].p_memsz - (k*4096), PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS);
-            seek(phdr[i].p_offset);
-            ssize_t bytes = read(fd, memory, phdr[i].p_filesz);
-            if(bytes == -1){
-                perror("Error reading data into memory");
-                munmap(memory, phdr[i].p_memsz);
-                exit(1);
-            }
-            k++;
+        if(addr<end && addr>=start){
+          int num_pages = (phdr[i].p_memsz + 4095)/4096;
+          int index = ((uintptr_t)addr - (uintptr_t)start)/4096;
+          void* page = mmap(start + index * 4096, 4096, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, fd, phdr[i].p_offset + index * 4096); // mapping the page
 
-            inf += (k*4096) - phdr[i].p_memsz;
-            pa += k;
-            break;
+          if(page == MAP_FAILED){
+            perror("Error mapping page");
+            exit(1);
+          }
+
+          seek(phdr[i].p_offset + index * 4096);
+          int remaining = phdr[i].p_filesz - index * 4096;  
+          int bytes = remaining > 4096 ? 4096 : remaining;
+
+          readfile(page, bytes);
+
+          if(addr + 4096 > end){
+            inf += 4096 - (end - addr);
+          }
+          // pa += index;
+          return;
         }
+      }
     }
-    return;
-}
+  }
+
+
 //helper function to change the position of the filepointer inside the file
 void seek(int offset) {
     if (lseek(fd, offset, SEEK_SET) == -1) {
