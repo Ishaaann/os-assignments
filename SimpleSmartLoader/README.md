@@ -28,9 +28,13 @@ Ensures minimal memory allocation by only mapping necessary pages during executi
 Tracks internal fragmentation and optimizes page utilization.
 
 ## How to Use
-```make```
+```
+make
+```
 
-```./loader <ELF executable>```
+```
+./loader <ELF executable>
+```
 
 ### Contribution
 Both of us mutually contributed equally in the making of this assignment.  
