@@ -35,6 +35,10 @@ make
 ```
 ./loader <ELF executable>
 ```
+#### Cleanup
+```
+make clean
+```
 
 ### Contribution
 Both of us mutually contributed equally in the making of this assignment.  

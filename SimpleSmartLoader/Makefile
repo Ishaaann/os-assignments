@@ -5,4 +5,4 @@ all:
 
 
 clean:
-	-@rm -f fib loader
+	-@rm -f fib loader sum
